@@ -1,0 +1,235 @@
+/*
+ * 基本樣式設定。使用 CSS Flex 布局實現常見的 RTS 遊戲界面。
+ * 顏色與字型採用深色軍事風格，可視需求調整。
+ */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: "Noto Sans TC", "Segoe UI", sans-serif;
+  background-color: #0c1a2b;
+  color: #f0f3f5;
+}
+
+/* 遮罩層（開始畫面） */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.start-content {
+  background-color: #13233a;
+  padding: 40px;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+}
+
+.start-content h1 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 32px;
+  color: #ffffff;
+}
+
+.start-content p {
+  margin-bottom: 20px;
+  font-size: 18px;
+  color: #b0c4de;
+}
+
+.faction-options {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.faction-options label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 16px;
+}
+
+#start-btn {
+  padding: 10px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #1e5aa8;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+#start-btn:hover {
+  background-color: #317bdc;
+}
+
+/* 主框架 */
+#game-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  visibility: hidden; /* 開始時隱藏，開始遊戲後顯示 */
+}
+
+/* 頂部狀態欄 */
+#top-bar {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  background-color: #051223;
+  color: #dfe6f1;
+  font-size: 14px;
+  border-bottom: 1px solid #11294b;
+}
+
+#top-bar .left-group span:not(:last-child) {
+  margin-right: 15px;
+}
+
+#top-bar .right-group button {
+  background: none;
+  border: 1px solid #36548b;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: #dfe6f1;
+  cursor: pointer;
+}
+
+#top-bar .right-group button:hover {
+  background-color: #36548b;
+}
+
+/* 主內容（左-中-右）布局 */
+#main-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* 左側單位列表 */
+#unit-panel {
+  width: 200px;
+  background-color: #0f2140;
+  border-right: 1px solid #11294b;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+#unit-panel h2 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+#unit-panel ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#unit-panel li {
+  padding: 5px;
+  margin-bottom: 4px;
+  background-color: #10254a;
+  border: 1px solid #1a325a;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+#unit-panel li.selected,
+#unit-panel li:hover {
+  background-color: #1e5aa8;
+}
+
+/* 中央畫布區 */
+#canvas-container {
+  flex: 1;
+  position: relative;
+  background-color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#game-canvas {
+  border: 1px solid #11294b;
+  background-color: #0f2140;
+}
+
+/* 小地圖 */
+#mini-map {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  border: 1px solid #11294b;
+  width: 150px;
+  height: 150px;
+  z-index: 10;
+  background-color: rgba(10, 20, 40, 0.8);
+}
+
+/* 右側資訊面板 */
+#info-panel {
+  width: 200px;
+  background-color: #0f2140;
+  border-left: 1px solid #11294b;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+#info-panel h2 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+/* 底部工具列 */
+#bottom-bar {
+  height: 40px;
+  background-color: #051223;
+  border-top: 1px solid #11294b;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 10px;
+}
+
+.tool-btn {
+  padding: 6px 12px;
+  border: 1px solid #36548b;
+  background-color: #10254a;
+  color: #dfe6f1;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.tool-btn:hover {
+  background-color: #1e5aa8;
+}
+
+.tool-btn.active {
+  background-color: #235b9a;
+  border-color: #235b9a;
+}
