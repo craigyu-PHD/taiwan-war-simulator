@@ -1,72 +1,83 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-Hant">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>台海兵棋推演模擬器</title>
     <!--
-      本網站是一個即時戰略遊戲原型，旨在模擬台海情境。畫面採用單一
-      Canvas 畫布，外部使用 HTML 元素組成資訊面板與操作工具列。
-      為求示範簡潔，僅包含基本的單位選取與移動功能，日後可再擴充。
+      本遊戲頁面依照使用者要求重新設計，採用經典即時戰略遊戲的
+      介面風格。地圖、單位與建築皆在 Canvas 中繪製，四周提供
+      狀態列、工具列與資訊面板。所有文字皆為繁體中文，搭配
+      Noto Sans TC 字體以提升可讀性。為了保持簡潔與示範性，
+      尚未實作完整的基地建設與 AI 攻擊邏輯，但提供了多單位
+      框選、右鍵移動、簡易生產單位與資源管理等核心功能。
     -->
+    <!-- 引入繁體中文字體 -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <!-- 封面／陣營選擇畫面 -->
+    <!-- 遊戲開始前的覆蓋層 -->
     <div id="start-screen" class="overlay">
-      <div class="start-content">
-        <h1>台海兵棋推演模擬器</h1>
-        <p>請選擇您的陣營</p>
-        <div class="faction-options">
+      <div class="start-panel">
+        <h1 class="title">台海兵棋推演模擬器</h1>
+        <p class="subtitle">選擇陣營後按「開始」進行推演</p>
+        <div class="faction-select">
           <label><input type="radio" name="faction" value="china" checked />中國</label>
           <label><input type="radio" name="faction" value="taiwan" />台灣</label>
           <label><input type="radio" name="faction" value="usa" />美國</label>
         </div>
-        <button id="start-btn">開始遊戲</button>
+        <button id="start-btn" class="primary-btn">開始遊戲</button>
       </div>
     </div>
 
-    <!-- 主容器 -->
-    <div id="game-container">
-      <!-- 上方狀態欄 -->
+    <!-- 遊戲主容器 -->
+    <div id="game-container" class="hidden">
+      <!-- 上方狀態列 -->
       <header id="top-bar">
-        <div class="left-group">
-          <span id="resource-display">資源: 1000</span>
-          <span id="time-display">時間: 0:00</span>
+        <div class="status-left">
+          <span id="status-resources">資源: 0</span>
+          <span id="status-time">時間: 00:00</span>
         </div>
-        <div class="right-group">
-          <button id="lang-toggle">EN</button>
+        <div class="status-right">
+          <span id="current-faction">陣營: -</span>
         </div>
       </header>
-      <!-- 主內容區域 -->
-      <div id="main-content">
-        <!-- 左側單位列表 -->
-        <aside id="unit-panel">
+      <div id="content-area">
+        <!-- 左側控制面板 -->
+        <aside id="left-panel">
+          <h2>生產與建築</h2>
+          <div id="build-buttons">
+            <button id="build-infantry" class="build-btn" data-type="infantry">生產步兵 (100)</button>
+            <button id="build-tank" class="build-btn" data-type="tank">生產戰車 (200)</button>
+            <button id="build-jet" class="build-btn" data-type="jet">生產戰機 (300)</button>
+          </div>
           <h2>部隊列表</h2>
           <ul id="unit-list"></ul>
         </aside>
-        <!-- 中央畫布區 -->
-        <div id="canvas-container">
-          <canvas id="game-canvas" width="681" height="800"></canvas>
-          <canvas id="mini-map" width="150" height="150"></canvas>
+        <!-- 地圖畫布 -->
+        <div id="map-wrapper">
+          <canvas id="game-canvas" width="1024" height="768"></canvas>
         </div>
         <!-- 右側資訊面板 -->
-        <aside id="info-panel">
-          <h2>單位資訊</h2>
-          <div id="info-content">
-            <p>選擇單位查看詳細資訊</p>
+        <aside id="right-panel">
+          <h2>選取資訊</h2>
+          <div id="info-display">
+            <p>點擊或拖曳選取單位，可查看詳細資料。</p>
           </div>
         </aside>
       </div>
-      <!-- 底部工具列 -->
+      <!-- 底部操作列 -->
       <footer id="bottom-bar">
-        <button id="move-btn" class="tool-btn" title="移動(M)">移動</button>
-        <button id="attack-btn" class="tool-btn" title="攻擊(A)">攻擊</button>
-        <button id="stop-btn" class="tool-btn" title="停止(S)">停止</button>
-        <button id="pause-btn" class="tool-btn" title="暫停/繼續">暫停</button>
+        <button id="cmd-move" class="cmd-btn" data-cmd="move">移動</button>
+        <button id="cmd-stop" class="cmd-btn" data-cmd="stop">停止</button>
+        <button id="cmd-hold" class="cmd-btn" data-cmd="hold">駐守</button>
+        <button id="cmd-pause" class="cmd-btn" data-cmd="pause">暫停</button>
       </footer>
     </div>
-
     <script src="script.js"></script>
   </body>
 </html>

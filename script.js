@@ -1,202 +1,233 @@
 //
-// script.js
+// 全新遊戲邏輯腳本
 //
-// 此檔案實現遊戲的主要邏輯。包括地圖加載、單位管理、
-// 事件處理以及簡單的即時戰略控制。該原型旨在展示如何利用
-// HTML5 Canvas 構建互動兵棋推演，日後可依需求擴充更多功能。
+// 本腳本實作了一個簡化的即時戰略模擬器，允許玩家於台灣海峽
+// 地圖上控制多個單位。提供滑鼠框選、右鍵移動、基礎生產單位
+// 與資源管理功能。此版本以 Canvas 2D 為核心，不使用外部
+// 圖形引擎，確保可在 GitHub Pages 上流暢運行。
 
 (() => {
   'use strict';
 
-  // 語言字典
-  const messages = {
-    zh: {
-      resources: '資源',
-      time: '時間',
-      unitList: '部隊列表',
-      unitInfo: '單位資訊',
-      selectUnit: '選擇單位查看詳細資訊',
-      move: '移動',
-      attack: '攻擊',
-      stop: '停止',
-      pause: '暫停',
-      resume: '繼續',
-    },
-    en: {
-      resources: 'Resources',
-      time: 'Time',
-      unitList: 'Units',
-      unitInfo: 'Unit Info',
-      selectUnit: 'Select a unit to view details',
-      move: 'Move',
-      attack: 'Attack',
-      stop: 'Stop',
-      pause: 'Pause',
-      resume: 'Resume',
-    },
-  };
-
-  let currentLang = 'zh';
-
-  // DOM elements
+  // DOM 元素
   const startScreen = document.getElementById('start-screen');
   const startBtn = document.getElementById('start-btn');
   const gameContainer = document.getElementById('game-container');
-  const topBar = document.getElementById('top-bar');
-  const resourceDisplay = document.getElementById('resource-display');
-  const timeDisplay = document.getElementById('time-display');
-  const langToggle = document.getElementById('lang-toggle');
+  const statusResources = document.getElementById('status-resources');
+  const statusTime = document.getElementById('status-time');
+  const currentFactionEl = document.getElementById('current-faction');
   const unitListEl = document.getElementById('unit-list');
-  const infoPanel = document.getElementById('info-panel');
-  const infoContent = document.getElementById('info-content');
-  const moveBtn = document.getElementById('move-btn');
-  const attackBtn = document.getElementById('attack-btn');
-  const stopBtn = document.getElementById('stop-btn');
-  const pauseBtn = document.getElementById('pause-btn');
-  const canvas = document.getElementById('game-canvas');
-  const miniMapCanvas = document.getElementById('mini-map');
-  const ctx = canvas.getContext('2d');
-  const miniCtx = miniMapCanvas.getContext('2d');
+  const infoDisplay = document.getElementById('info-display');
+  const buildInfantryBtn = document.getElementById('build-infantry');
+  const buildTankBtn = document.getElementById('build-tank');
+  const buildJetBtn = document.getElementById('build-jet');
+  const cmdButtons = {
+    move: document.getElementById('cmd-move'),
+    stop: document.getElementById('cmd-stop'),
+    hold: document.getElementById('cmd-hold'),
+    pause: document.getElementById('cmd-pause'),
+  };
 
-  // Game state
+  // Canvas setup
+  const canvas = document.getElementById('game-canvas');
+  const ctx = canvas.getContext('2d');
+
+  // 遊戲狀態
   let gameStarted = false;
   let selectedFaction = 'china';
   let resources = 1000;
-  let gameTime = 0; // in seconds
+  let gameTime = 0;
   let timerInterval = null;
   let paused = false;
-  let currentCommand = 'move'; // move, attack, stop
+  let currentCommand = 'move';
 
-  // Map image
+  // 地圖圖像
   const mapImage = new Image();
   mapImage.src = 'images/Taiwan_Strait.png';
   let mapLoaded = false;
   mapImage.onload = () => {
     mapLoaded = true;
-    // Adjust canvas size to map
+    // 適應 Canvas 大小以容納地圖；如果地圖太大可縮放或裁切
     canvas.width = mapImage.width;
     canvas.height = mapImage.height;
-    // Mini map aspect ratio
     draw();
   };
 
-  // Unit definitions
+  // 單位設定
   const unitTypes = {
-    infantry: { radius: 5, speed: 0.5, color: { china: '#cc4b37', taiwan: '#20a668', usa: '#265aa7' } },
-    tank: { radius: 8, speed: 0.3, color: { china: '#e05038', taiwan: '#2cb073', usa: '#2f6fb5' } },
-    jet: { radius: 6, speed: 1.0, color: { china: '#db5140', taiwan: '#1da764', usa: '#2b5fa0' } },
+    infantry: { radius: 6, speed: 0.8, hp: 60, cost: 100 },
+    tank: { radius: 10, speed: 0.5, hp: 120, cost: 200 },
+    jet: { radius: 8, speed: 1.2, hp: 80, cost: 300 },
   };
 
-  // Units array
+  // 單位顏色依陣營設定
+  const factionColors = {
+    china: '#d9413a',
+    taiwan: '#2aa567',
+    usa: '#2c5faf',
+  };
+
+  // 單位陣列與建築
   let units = [];
   let selectedUnits = [];
+  let hq = null; // 簡易總部
 
-  // Initialize game with some units
+  // 框選矩形相關狀態
+  let isSelecting = false;
+  let selectStart = { x: 0, y: 0 };
+  let selectCurrent = { x: 0, y: 0 };
+
   function initGame() {
-    units = [];
-    selectedUnits = [];
+    // 初始化資源與時間
     resources = 1000;
     gameTime = 0;
     paused = false;
     currentCommand = 'move';
-    updateToolButtons();
+    units = [];
+    selectedUnits = [];
+    hq = null;
+    updateCmdButtons();
 
-    // create units for each faction with predefined positions
-    // positions roughly correspond to major cities/regions on the map
-    const startingPositions = {
-      china: [
-        { type: 'infantry', x: 200, y: 200 },
-        { type: 'tank', x: 220, y: 230 },
-        { type: 'jet', x: 250, y: 180 },
-      ],
-      taiwan: [
-        { type: 'infantry', x: 500, y: 550 },
-        { type: 'tank', x: 520, y: 580 },
-        { type: 'jet', x: 480, y: 520 },
-      ],
-      usa: [
-        { type: 'infantry', x: 600, y: 100 },
-        { type: 'tank', x: 630, y: 130 },
-        { type: 'jet', x: 570, y: 90 },
-      ],
+    // 建立玩家總部 (HQ)
+    const basePos = getFactionBasePosition(selectedFaction);
+    hq = {
+      x: basePos.x,
+      y: basePos.y,
+      width: 30,
+      height: 30,
+      faction: selectedFaction,
+      hp: 500,
     };
 
-    Object.keys(startingPositions).forEach((faction) => {
-      startingPositions[faction].forEach((pos, idx) => {
-        units.push({
-          id: `${faction}-${pos.type}-${idx}`,
-          faction,
-          type: pos.type,
-          x: pos.x,
-          y: pos.y,
-          targetX: pos.x,
-          targetY: pos.y,
-          hp: 100,
-          selected: false,
-        });
-      });
+    // 初始單位配置 (每陣營三種單位各 2 個)
+    const initialPositions = getInitialUnitPositions(selectedFaction);
+    initialPositions.forEach((pos) => {
+      spawnUnit(pos.type, pos.x, pos.y);
     });
 
-    updateUnitList();
-    updateInfoPanel();
-
-    // start timer
+    // 啟動時間計時器
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
       if (!paused) {
         gameTime++;
-        updateTopBar();
+        updateStatusBar();
       }
     }, 1000);
 
-    // start animation loop
+    // 啟動動畫循環
     requestAnimationFrame(update);
   }
 
-  function updateTopBar() {
-    const m = Math.floor(gameTime / 60).toString().padStart(2, '0');
-    const s = (gameTime % 60).toString().padStart(2, '0');
-    resourceDisplay.textContent = `${messages[currentLang].resources}: ${resources}`;
-    timeDisplay.textContent = `${messages[currentLang].time}: ${m}:${s}`;
+  // 根據陣營回傳總部位置
+  function getFactionBasePosition(faction) {
+    // 使用 mapImage 的座標大致對應主要地區
+    if (faction === 'china') return { x: 150, y: 200 };
+    if (faction === 'taiwan') return { x: canvas.width - 200, y: canvas.height - 200 };
+    if (faction === 'usa') return { x: canvas.width - 200, y: 200 };
+    return { x: canvas.width / 2, y: canvas.height / 2 };
   }
 
+  // 初始單位位置依陣營
+  function getInitialUnitPositions(faction) {
+    const positions = [];
+    if (faction === 'china') {
+      positions.push({ type: 'infantry', x: 180, y: 250 });
+      positions.push({ type: 'infantry', x: 210, y: 230 });
+      positions.push({ type: 'tank', x: 200, y: 280 });
+      positions.push({ type: 'tank', x: 230, y: 260 });
+      positions.push({ type: 'jet', x: 150, y: 180 });
+      positions.push({ type: 'jet', x: 190, y: 170 });
+    } else if (faction === 'taiwan') {
+      const bx = canvas.width - 220;
+      const by = canvas.height - 260;
+      positions.push({ type: 'infantry', x: bx, y: by });
+      positions.push({ type: 'infantry', x: bx + 30, y: by + 20 });
+      positions.push({ type: 'tank', x: bx - 20, y: by + 40 });
+      positions.push({ type: 'tank', x: bx + 40, y: by + 50 });
+      positions.push({ type: 'jet', x: bx, y: by - 40 });
+      positions.push({ type: 'jet', x: bx + 30, y: by - 60 });
+    } else if (faction === 'usa') {
+      const bx = canvas.width - 250;
+      const by = 220;
+      positions.push({ type: 'infantry', x: bx, y: by });
+      positions.push({ type: 'infantry', x: bx + 30, y: by - 20 });
+      positions.push({ type: 'tank', x: bx - 30, y: by + 30 });
+      positions.push({ type: 'tank', x: bx + 40, y: by + 30 });
+      positions.push({ type: 'jet', x: bx + 10, y: by - 60 });
+      positions.push({ type: 'jet', x: bx + 50, y: by - 40 });
+    }
+    return positions;
+  }
+
+  // 產生單位函式，若未指定 x/y，則在 HQ 附近生成
+  function spawnUnit(type, x = null, y = null) {
+    const def = unitTypes[type];
+    if (!def) return;
+    if (x === null || y === null) {
+      // 隨機在 HQ 周圍生成
+      const offset = 40 + Math.random() * 30;
+      const angle = Math.random() * Math.PI * 2;
+      x = hq.x + hq.width / 2 + Math.cos(angle) * offset;
+      y = hq.y + hq.height / 2 + Math.sin(angle) * offset;
+    }
+    const id = `${type}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    units.push({
+      id,
+      type,
+      faction: selectedFaction,
+      x,
+      y,
+      destX: x,
+      destY: y,
+      hp: def.hp,
+      selected: false,
+    });
+    updateUnitList();
+  }
+
+  // 更新頂部狀態列
+  function updateStatusBar() {
+    statusResources.textContent = `資源: ${resources}`;
+    const m = Math.floor(gameTime / 60).toString().padStart(2, '0');
+    const s = (gameTime % 60).toString().padStart(2, '0');
+    statusTime.textContent = `時間: ${m}:${s}`;
+  }
+
+  // 更新單位列表
   function updateUnitList() {
     unitListEl.innerHTML = '';
-    units.forEach((unit) => {
+    units.forEach((u) => {
       const li = document.createElement('li');
-      li.textContent = `${unit.faction.charAt(0).toUpperCase() + unit.faction.slice(1)} ${unit.type}`;
-      li.dataset.id = unit.id;
-      if (unit.selected) li.classList.add('selected');
+      li.textContent = `${u.type}-${u.id.slice(0, 4)}`;
+      if (u.selected) li.classList.add('selected');
       li.addEventListener('click', () => {
         clearSelections();
-        unit.selected = true;
-        selectedUnits = [unit];
+        u.selected = true;
+        selectedUnits = [u];
         updateUnitList();
-        updateInfoPanel();
+        updateInfoDisplay();
       });
       unitListEl.appendChild(li);
     });
   }
 
-  function updateInfoPanel() {
-    const titleEl = infoPanel.querySelector('h2');
-    titleEl.textContent = messages[currentLang].unitInfo;
+  // 更新資訊面板
+  function updateInfoDisplay() {
     if (selectedUnits.length === 0) {
-      infoContent.textContent = messages[currentLang].selectUnit;
+      infoDisplay.innerHTML = '<p>點擊或拖曳選取單位，可查看詳細資料。</p>';
     } else if (selectedUnits.length === 1) {
-      const unit = selectedUnits[0];
-      infoContent.innerHTML = `
-        <p><strong>ID:</strong> ${unit.id}</p>
-        <p><strong>陣營:</strong> ${unit.faction}</p>
-        <p><strong>類型:</strong> ${unit.type}</p>
-        <p><strong>HP:</strong> ${unit.hp}</p>
-        <p><strong>位置:</strong> (${Math.round(unit.x)}, ${Math.round(unit.y)})</p>
+      const u = selectedUnits[0];
+      infoDisplay.innerHTML = `
+        <p><strong>單位類型：</strong>${u.type}</p>
+        <p><strong>生命值：</strong>${u.hp}</p>
+        <p><strong>位置：</strong>(${u.x.toFixed(0)}, ${u.y.toFixed(0)})</p>
       `;
     } else {
-      infoContent.textContent = `${selectedUnits.length} units selected`;
+      infoDisplay.innerHTML = `<p>已選取 ${selectedUnits.length} 個單位</p>`;
     }
   }
 
+  // 清空所有選取
   function clearSelections() {
     units.forEach((u) => {
       u.selected = false;
@@ -204,52 +235,96 @@
     selectedUnits = [];
   }
 
-  function selectUnitAt(x, y, multi = false) {
-    let hit = null;
-    for (let i = 0; i < units.length; i++) {
-      const u = units[i];
-      const dx = x - u.x;
-      const dy = y - u.y;
-      if (Math.sqrt(dx * dx + dy * dy) <= unitTypes[u.type].radius + 2) {
-        hit = u;
-        break;
+  // 更新下方指令按鈕狀態
+  function updateCmdButtons() {
+    Object.keys(cmdButtons).forEach((cmd) => {
+      const btn = cmdButtons[cmd];
+      if (cmd === currentCommand) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
       }
-    }
-    if (hit) {
-      if (!multi) clearSelections();
-      hit.selected = true;
-      if (!selectedUnits.includes(hit)) selectedUnits.push(hit);
-      updateUnitList();
-      updateInfoPanel();
-    } else if (!multi) {
-      // clicked empty space: clear selection
-      clearSelections();
-      updateUnitList();
-      updateInfoPanel();
-    }
-  }
-
-  function issueMoveCommand(targetX, targetY) {
-    selectedUnits.forEach((unit) => {
-      unit.targetX = targetX;
-      unit.targetY = targetY;
+      // 暫停按鈕特殊文字
+      if (cmd === 'pause') {
+        btn.textContent = paused ? '繼續' : '暫停';
+      }
     });
   }
 
+  // 處理滑鼠事件
+  function bindCanvasEvents() {
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (e.button === 0) {
+        // 左鍵開始框選
+        isSelecting = true;
+        selectStart = { x, y };
+        selectCurrent = { x, y };
+      }
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isSelecting) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      selectCurrent = { x, y };
+    });
+    canvas.addEventListener('mouseup', (e) => {
+      if (e.button === 0 && isSelecting) {
+        // 完成框選
+        isSelecting = false;
+        performSelection(selectStart, selectCurrent);
+      }
+    });
+    canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      // 右鍵下命令
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (selectedUnits.length > 0) {
+        selectedUnits.forEach((u) => {
+          u.destX = x;
+          u.destY = y;
+        });
+      }
+    });
+  }
+
+  // 執行框選邏輯
+  function performSelection(start, end) {
+    const x1 = Math.min(start.x, end.x);
+    const x2 = Math.max(start.x, end.x);
+    const y1 = Math.min(start.y, end.y);
+    const y2 = Math.max(start.y, end.y);
+    clearSelections();
+    units.forEach((u) => {
+      if (u.x >= x1 && u.x <= x2 && u.y >= y1 && u.y <= y2) {
+        u.selected = true;
+        selectedUnits.push(u);
+      }
+    });
+    updateUnitList();
+    updateInfoDisplay();
+  }
+
+  // 更新單位位置並繪製畫面
   function update() {
     if (!gameStarted) return;
     if (!paused) {
-      // update units positions towards target
-      units.forEach((unit) => {
-        const speed = unitTypes[unit.type].speed;
-        const dx = unit.targetX - unit.x;
-        const dy = unit.targetY - unit.y;
+      // 更新位置
+      units.forEach((u) => {
+        const def = unitTypes[u.type];
+        const dx = u.destX - u.x;
+        const dy = u.destY - u.y;
         const dist = Math.hypot(dx, dy);
-        if (dist > 0.5) {
-          const vx = (dx / dist) * speed;
-          const vy = (dy / dist) * speed;
-          unit.x += vx;
-          unit.y += vy;
+        if (dist > 1) {
+          const vx = (dx / dist) * def.speed;
+          const vy = (dy / dist) * def.speed;
+          u.x += vx;
+          u.y += vy;
         }
       });
     }
@@ -257,142 +332,106 @@
     requestAnimationFrame(update);
   }
 
+  // 主繪圖函式
   function draw() {
     if (!mapLoaded) return;
-    // draw map
+    // 清空畫布
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // 繪製地圖
     ctx.drawImage(mapImage, 0, 0);
-    // draw units
-    units.forEach((unit) => {
-      const typeInfo = unitTypes[unit.type];
+    // 繪製 HQ
+    if (hq) {
+      ctx.fillStyle = factionColors[selectedFaction];
+      ctx.fillRect(hq.x, hq.y, hq.width, hq.height);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(hq.x, hq.y, hq.width, hq.height);
+    }
+    // 繪製單位
+    units.forEach((u) => {
       ctx.beginPath();
-      ctx.fillStyle = typeInfo.color[unit.faction];
-      ctx.arc(unit.x, unit.y, typeInfo.radius, 0, Math.PI * 2);
+      ctx.fillStyle = factionColors[u.faction];
+      ctx.arc(u.x, u.y, unitTypes[u.type].radius, 0, Math.PI * 2);
       ctx.fill();
-      // selection ring
-      if (unit.selected) {
-        ctx.strokeStyle = '#ffff00';
+      if (u.selected) {
+        ctx.strokeStyle = '#fffa74';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(unit.x, unit.y, typeInfo.radius + 3, 0, Math.PI * 2);
+        ctx.arc(u.x, u.y, unitTypes[u.type].radius + 3, 0, Math.PI * 2);
         ctx.stroke();
       }
     });
-    // draw mini map
-    drawMiniMap();
+    // 繪製框選矩形
+    if (isSelecting) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.lineWidth = 1;
+      const x = selectStart.x;
+      const y = selectStart.y;
+      const w = selectCurrent.x - selectStart.x;
+      const h = selectCurrent.y - selectStart.y;
+      ctx.strokeRect(x, y, w, h);
+    }
   }
 
-  function drawMiniMap() {
-    const mw = miniMapCanvas.width;
-    const mh = miniMapCanvas.height;
-    // draw scaled-down map
-    miniCtx.drawImage(mapImage, 0, 0, mw, mh);
-    // draw units scaled
-    units.forEach((unit) => {
-      const sx = (unit.x / canvas.width) * mw;
-      const sy = (unit.y / canvas.height) * mh;
-      const r = Math.max(2, (unitTypes[unit.type].radius * mw) / canvas.width);
-      miniCtx.beginPath();
-      miniCtx.fillStyle = unitTypes[unit.type].color[unit.faction];
-      miniCtx.arc(sx, sy, r, 0, Math.PI * 2);
-      miniCtx.fill();
+  // 綁定 UI 事件
+  function bindUIEvents() {
+    // 兵種建造按鈕
+    buildInfantryBtn.addEventListener('click', () => {
+      attemptBuildUnit('infantry');
     });
-  }
-
-  // 更新工具列按鈕狀態
-  function updateToolButtons() {
-    const toolButtons = { move: moveBtn, attack: attackBtn, stop: stopBtn };
-    Object.keys(toolButtons).forEach((cmd) => {
-      if (cmd === currentCommand) {
-        toolButtons[cmd].classList.add('active');
-      } else {
-        toolButtons[cmd].classList.remove('active');
-      }
+    buildTankBtn.addEventListener('click', () => {
+      attemptBuildUnit('tank');
     });
-    // 更新按鈕文字
-    moveBtn.textContent = messages[currentLang].move;
-    attackBtn.textContent = messages[currentLang].attack;
-    stopBtn.textContent = messages[currentLang].stop;
-    pauseBtn.textContent = paused ? messages[currentLang].resume : messages[currentLang].pause;
-  }
-
-  // 語言切換
-  function toggleLanguage() {
-    currentLang = currentLang === 'zh' ? 'en' : 'zh';
-    langToggle.textContent = currentLang === 'zh' ? 'EN' : '中';
-    updateTopBar();
-    // 更新標題/面板
-    document.querySelector('#unit-panel h2').textContent = messages[currentLang].unitList;
-    updateInfoPanel();
-    updateToolButtons();
-  }
-
-  // 事件綁定
-  function bindEvents() {
-    // canvas 點擊事件
-    canvas.addEventListener('mousedown', (e) => {
-      // 計算點擊位置
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      // 左鍵選取
-      if (e.button === 0) {
-        const multi = e.shiftKey;
-        selectUnitAt(x, y, multi);
-      }
-      // 右鍵移動
-      if (e.button === 2) {
-        if (currentCommand === 'move') {
-          issueMoveCommand(x, y);
+    buildJetBtn.addEventListener('click', () => {
+      attemptBuildUnit('jet');
+    });
+    // 指令按鈕
+    Object.keys(cmdButtons).forEach((cmd) => {
+      cmdButtons[cmd].addEventListener('click', () => {
+        if (cmd === 'pause') {
+          paused = !paused;
+          updateCmdButtons();
+          return;
         }
-      }
-    });
-    // 禁用右鍵菜單
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-
-    // 工具列按鈕
-    moveBtn.addEventListener('click', () => {
-      currentCommand = 'move';
-      updateToolButtons();
-    });
-    attackBtn.addEventListener('click', () => {
-      currentCommand = 'attack';
-      updateToolButtons();
-      // 攻擊功能待日後實作
-    });
-    stopBtn.addEventListener('click', () => {
-      currentCommand = 'stop';
-      updateToolButtons();
-      // 停止移動
-      selectedUnits.forEach((unit) => {
-        unit.targetX = unit.x;
-        unit.targetY = unit.y;
+        currentCommand = cmd;
+        updateCmdButtons();
       });
     });
-    pauseBtn.addEventListener('click', () => {
-      paused = !paused;
-      updateToolButtons();
-    });
+  }
 
-    // 語言切換
-    langToggle.addEventListener('click', toggleLanguage);
+  // 嘗試建造單位：檢查資源是否足夠
+  function attemptBuildUnit(type) {
+    const cost = unitTypes[type].cost;
+    if (resources >= cost) {
+      resources -= cost;
+      updateStatusBar();
+      spawnUnit(type);
+    }
+  }
 
+  // 初始化事件
+  function initEvents() {
     // 開始遊戲按鈕
     startBtn.addEventListener('click', () => {
       const selectedRadio = document.querySelector('input[name="faction"]:checked');
       selectedFaction = selectedRadio ? selectedRadio.value : 'china';
+      currentFactionEl.textContent = `陣營: ${selectedFaction === 'china' ? '中國' : selectedFaction === 'taiwan' ? '台灣' : '美國'}`;
       startScreen.style.display = 'none';
-      gameContainer.style.visibility = 'visible';
+      gameContainer.classList.remove('hidden');
       gameStarted = true;
       initGame();
-      updateTopBar();
-      updateToolButtons();
+      updateStatusBar();
+      updateUnitList();
+      updateInfoDisplay();
     });
+    // Canvas 事件
+    bindCanvasEvents();
+    // UI 事件
+    bindUIEvents();
   }
 
-  // 初始執行
+  // 當頁面載入完成後綁定事件
   document.addEventListener('DOMContentLoaded', () => {
-    bindEvents();
-    // 預設語言按鈕文字
-    langToggle.textContent = 'EN';
+    initEvents();
   });
 })();
