@@ -42,8 +42,12 @@
   let currentCommand = 'move';
 
   // 地圖圖像
+  //
+  // 注意：GitHub Pages 部署時，若圖片路徑帶有資料夾，Jekyll 可能無法正確處理。
+  // 因此本版本直接將地圖檔案放置在存放庫根目錄下，並於此處載入該檔案。
+  // 若將來要改為其他載入方式，可將下列路徑調整為對應位置或改用 base64 資料 URI。
   const mapImage = new Image();
-  mapImage.src = 'images/Taiwan_Strait.png';
+  mapImage.src = 'Taiwan_Strait.png';
   let mapLoaded = false;
   mapImage.onload = () => {
     mapLoaded = true;
@@ -58,6 +62,14 @@
     infantry: { radius: 6, speed: 0.8, hp: 60, cost: 100 },
     tank: { radius: 10, speed: 0.5, hp: 120, cost: 200 },
     jet: { radius: 8, speed: 1.2, hp: 80, cost: 300 },
+  };
+
+  // 單位中文名稱對照
+  // 用於顯示於部隊列表與資訊面板，使介面完全繁體中文
+  const unitNameZH = {
+    infantry: '步兵',
+    tank: '戰車',
+    jet: '戰機',
   };
 
   // 單位顏色依陣營設定
@@ -196,9 +208,12 @@
   // 更新單位列表
   function updateUnitList() {
     unitListEl.innerHTML = '';
-    units.forEach((u) => {
+    units.forEach((u, index) => {
       const li = document.createElement('li');
-      li.textContent = `${u.type}-${u.id.slice(0, 4)}`;
+      // 使用繁體中文顯示單位類型，並附加編號以區分重複單位
+      const typeName = unitNameZH[u.type] || u.type;
+      // 序號簡化為索引加一
+      li.textContent = `${typeName} #${index + 1}`;
       if (u.selected) li.classList.add('selected');
       li.addEventListener('click', () => {
         clearSelections();
@@ -217,8 +232,9 @@
       infoDisplay.innerHTML = '<p>點擊或拖曳選取單位，可查看詳細資料。</p>';
     } else if (selectedUnits.length === 1) {
       const u = selectedUnits[0];
+      const typeName = unitNameZH[u.type] || u.type;
       infoDisplay.innerHTML = `
-        <p><strong>單位類型：</strong>${u.type}</p>
+        <p><strong>單位類型：</strong>${typeName}</p>
         <p><strong>生命值：</strong>${u.hp}</p>
         <p><strong>位置：</strong>(${u.x.toFixed(0)}, ${u.y.toFixed(0)})</p>
       `;
