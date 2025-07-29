@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>台海兵棋推演模擬器</title>
+    <!--
+      本網站是一個即時戰略遊戲原型，旨在模擬台海情境。畫面採用單一
+      Canvas 畫布，外部使用 HTML 元素組成資訊面板與操作工具列。
+      為求示範簡潔，僅包含基本的單位選取與移動功能，日後可再擴充。
+    -->
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- 封面／陣營選擇畫面 -->
+    <div id="start-screen" class="overlay">
+      <div class="start-content">
+        <h1>台海兵棋推演模擬器</h1>
+        <p>請選擇您的陣營</p>
+        <div class="faction-options">
+          <label><input type="radio" name="faction" value="china" checked />中國</label>
+          <label><input type="radio" name="faction" value="taiwan" />台灣</label>
+          <label><input type="radio" name="faction" value="usa" />美國</label>
+        </div>
+        <button id="start-btn">開始遊戲</button>
+      </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div id="game-container">
+      <!-- 上方狀態欄 -->
+      <header id="top-bar">
+        <div class="left-group">
+          <span id="resource-display">資源: 1000</span>
+          <span id="time-display">時間: 0:00</span>
+        </div>
+        <div class="right-group">
+          <button id="lang-toggle">EN</button>
+        </div>
+      </header>
+      <!-- 主內容區域 -->
+      <div id="main-content">
+        <!-- 左側單位列表 -->
+        <aside id="unit-panel">
+          <h2>部隊列表</h2>
+          <ul id="unit-list"></ul>
+        </aside>
+        <!-- 中央畫布區 -->
+        <div id="canvas-container">
+          <canvas id="game-canvas" width="681" height="800"></canvas>
+          <canvas id="mini-map" width="150" height="150"></canvas>
+        </div>
+        <!-- 右側資訊面板 -->
+        <aside id="info-panel">
+          <h2>單位資訊</h2>
+          <div id="info-content">
+            <p>選擇單位查看詳細資訊</p>
+          </div>
+        </aside>
+      </div>
+      <!-- 底部工具列 -->
+      <footer id="bottom-bar">
+        <button id="move-btn" class="tool-btn" title="移動(M)">移動</button>
+        <button id="attack-btn" class="tool-btn" title="攻擊(A)">攻擊</button>
+        <button id="stop-btn" class="tool-btn" title="停止(S)">停止</button>
+        <button id="pause-btn" class="tool-btn" title="暫停/繼續">暫停</button>
+      </footer>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
